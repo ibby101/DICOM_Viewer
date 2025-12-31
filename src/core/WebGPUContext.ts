@@ -1,3 +1,9 @@
+import { VolumeRenderer } from "../rendering/VolumeRenderer";
+import { VolumeLoader } from "../volume/VolumeLoader";
+import { VolumeTexture } from "../volume/VolumeTexture";
+import { Camera } from "./Camera";
+import { InputHandler } from "./InputHandler";
+
 const Initialise = async () => {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
     const adapter = await navigator.gpu?.requestAdapter();
@@ -12,7 +18,9 @@ const Initialise = async () => {
     console.log('WebGPU adapter and device initialised:', adapter?.info, device);
 
     const context = canvas.getContext('webgpu')!;
+
     console.log('canvas context obtained:', context);
+
     const format = navigator.gpu.getPreferredCanvasFormat();
 
     context.configure({
@@ -23,20 +31,24 @@ const Initialise = async () => {
 
     console.log('canvas context configured.');
 
-    const commandEncoder = device.createCommandEncoder();
-    const textureView = context.getCurrentTexture().createView();
+    // generating test volume
+    const volume = VolumeLoader.generateTestVolume(128);
+    const volumeTexture = new VolumeTexture(device, volume);
 
-    const renderPass = commandEncoder.beginRenderPass({
-        colorAttachments: [{
-            view: textureView,
-            clearValue: {r: 0.4, g: 0.4, b: 0.4, a: 1.0},
-            loadOp: 'clear',
-            storeOp: 'store',
-        }],
-    });
-    renderPass.end();
+    // camera and input setup
+    const camera = new Camera();
+    new InputHandler(canvas, camera);
 
-    device.queue.submit([commandEncoder.finish()]);
+    // creating renderer
+    const renderer = new VolumeRenderer(device, context, volumeTexture, camera);
+
+    // render loop
+    function frame() {
+        renderer.render();
+        requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame)
 }
 
 Initialise();
