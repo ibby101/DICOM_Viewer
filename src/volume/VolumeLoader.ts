@@ -80,4 +80,41 @@ export class VolumeLoader {
         console.warn('Could not infer dimensions from size ${byteLength}. Assuming 256³');
         return [256, 256, 256];
     }
+
+    /**
+     * generation of synthetic test volume with sphere
+     * used for testing rendering without real data
+     * @param size - cube dimensions, 128 by default
+     * @returns volume containing a centered sphere
+     */
+    static generateTestVolume(size: number = 128): Volume {
+        const dimensions: [number, number, number] = [size, size, size];
+        const data = new Float32Array(size * size * size);
+
+        const centre = size / 2;
+        const radius = size / 3;
+    
+        for (let z = 0; z < size; z++) {
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const dx = x - centre;
+                    const dy = y - centre;
+                    const dz = z - centre;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+                    const idx = x + y * size + z * size * size;
+
+                    if (dist < radius) {
+                        data[idx] = 1.0 - (dist / radius);
+                    } else {
+                        data[idx] = 0.0;
+                    }
+                }
+            }
+        }
+
+        return new Volume(data, dimensions);
+    }
+
+    
 }
