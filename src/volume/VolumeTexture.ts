@@ -7,11 +7,8 @@ export class VolumeTexture {
     public readonly texture: GPUTexture;
     public readonly view: GPUTextureView;
     public readonly sampler: GPUSampler;
-    private device: GPUDevice;
 
     constructor(device: GPUDevice, volume: Volume){
-        this.device = device;
-
         this.texture = device.createTexture({
             size: {
                 width: volume.width,
