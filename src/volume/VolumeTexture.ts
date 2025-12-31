@@ -41,9 +41,9 @@ export class VolumeTexture {
         }); 
 
         this.sampler = device.createSampler({
-            magFilter: 'linear',
-            minFilter: 'linear',
-            mipmapFilter: 'linear',
+            magFilter: 'nearest',
+            minFilter: 'nearest',
+            mipmapFilter: 'nearest',
             addressModeU: 'clamp-to-edge',
             addressModeV: 'clamp-to-edge',
             addressModeW: 'clamp-to-edge',
