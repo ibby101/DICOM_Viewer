@@ -30,8 +30,8 @@ export class VolumeRenderer {
         const bindGroupLayout = device.createBindGroupLayout({
             entries: [
                 {binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: {type: 'uniform'}},
-                {binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {sampleType: 'float', viewDimension: '3d'}},
-                {binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {type: 'filtering'}},
+                {binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {sampleType: 'unfilterable-float', viewDimension: '3d'}},
+                {binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {type: 'non-filtering'}},
             ],
         });
 
