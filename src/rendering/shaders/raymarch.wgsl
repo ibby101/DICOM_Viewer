@@ -5,7 +5,7 @@ struct Uniforms {
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var volumeTexture: texture_3d<f32>
+@group(0) @binding(1) var volumeTexture: texture_3d<f32>;
 @group(0) @binding(2) var volumeSampler: sampler;
 
 struct VertexOutput {
@@ -17,11 +17,11 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    var output: VertexOutput
+    var output: VertexOutput;
 
     // fullscreen triangle generation
     let x = f32((vertexIndex << 1u) & 2u);
-    let y = f32(vertexIndex & 2u)
+    let y = f32(vertexIndex & 2u);
 
     output.position = vec4<f32>(x * 2.0 - 1.0, 1.0 - y * 2.0, 0.0, 1.0);
     output.uv = vec2<f32>(x, y);
@@ -37,7 +37,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let ndc = input.uv * 2.0 - 1.0;
 
     // setting up ray origin (camera position)
-    let rayOrigin = uniform.cameraPos;
+    let rayOrigin = uniforms.cameraPos;
 
     // orthographic ray direction
     let rayDir = normalize(vec3<f32>(ndc.x, ndc.y, -1.0));
@@ -57,7 +57,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         // checking if we are inside the volume
         if (all(texCoord >= vec3<f32>(0.0)) && all(texCoord <= vec3<f32>(1.0))){
             // if so, sample volume
-            let density = textureSample(volumeTexture, volumeSampler, texCoord).r;
+            let density = textureSampleLevel(volumeTexture, volumeSampler, texCoord, 0.0).r;
 
             // applying transfer function, opacity based on density
             let colour = vec4<f32>(1.0, 1.0, 1.0, density * 0.1);
