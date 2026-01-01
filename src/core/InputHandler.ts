@@ -17,6 +17,13 @@ export class InputHandler {
     }
 
     private setupListeners() {
+        // detecting when user is clicking
+        this.canvas.addEventListener('mousedown', (e) => {
+            this.isDragging = true;
+            this.lastX = e.clientX;
+            this.lastY = e.clientY;
+        });
+
         this.canvas.addEventListener('mousemove', (e) => {
             if (!this.isDragging) return;
 

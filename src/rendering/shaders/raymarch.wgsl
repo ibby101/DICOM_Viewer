@@ -1,7 +1,10 @@
 struct Uniforms {
     viewMatrix: mat4x4<f32>,
+    invViewMatrix: mat4x4<f32>,
     cameraPos: vec3<f32>,
+    _padding1: f32,
     volumeSize: vec3<f32>,
+    _padding2: f32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -29,6 +32,21 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     return output;
 }
 
+// raybox intersection implementation
+fn rayBoxIntersection(rayOrigin: vec3<f32>, rayDir: vec3<f32>, boxMin: vec3<f32>, boxMax: vec3<f32>) -> vec2<f32> {
+    let invDir = 1.0 / rayDir;
+    let t0 = (boxMin - rayOrigin) * invDir;
+    let t1 = (boxMax - rayOrigin) * invDir;
+
+    let tMin = min(t0, t1);
+    let tMax = max(t0, t1);
+
+    let tEnter = max(max(tMin.x, tMin.y), tMin.z);
+    let tExit = min(min(tMax.x, tMax.y), tMax.z);
+
+    return vec2<f32>(tEnter, tExit);
+}
+
 // raymarching fragment shader implementation
 
 @fragment
@@ -36,34 +54,57 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // converting uv to normalised device coordinates
     let ndc = input.uv * 2.0 - 1.0;
 
+    // generating ray in view space
+    let aspect = 1.0;
+    let fov = 1.0;
+    let rayDirView = normalize(vec3<f32>(ndc.x * aspect, -ndc.y, -fov));
+
+    // transforming ray to world space using inverse view
+    let rayDirWorld = normalize((uniforms.invViewMatrix * vec4<f32>(rayDirView, 0.0)).xyz);
+
     // setting up ray origin (camera position)
     let rayOrigin = uniforms.cameraPos;
 
-    // orthographic ray direction
-    let rayDir = normalize(vec3<f32>(ndc.x, ndc.y, -1.0));
+    // setting up volume bounding box
+    let boxMin = vec3<f32>(-0.5, -0.5, -0.5);
+    let boxMax = vec3<f32>(0.5, 0.5, 0.5);
+    
+    let intersection = rayBoxIntersection(rayOrigin, rayDirWorld, boxMin, boxMax);
+    let tEnter = intersection.x;
+    let tExit = intersection.y;
 
+    if (tEnter > tExit || tExit < 0.0) {
+        return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    }
+
+    let tStart = max(tEnter, 0.0);
+    
     // raymarching through the volume
-    let stepSize = 0.01;
-    let maxSteps = 500;
-    var t = 0.0;
+    let stepSize = 0.005;
+    let maxSteps = 400;
+    var t = tStart;
     var accumColour = vec4<f32>(0.0);
 
     for (var i = 0; i < maxSteps; i++) {
-        let pos = rayOrigin + rayDir * t;
+        if (t > tExit){
+            break;
+        }
+
+        let pos = rayOrigin + rayDirWorld * t;
 
         // converting to texture coordinates
-        let texCoord = pos * 0.5 + 0.5;
+        let texCoord = pos + 0.5;
 
-        // checking if we are inside the volume
-        if (all(texCoord >= vec3<f32>(0.0)) && all(texCoord <= vec3<f32>(1.0))){
-            // if so, sample volume
-            let density = textureSampleLevel(volumeTexture, volumeSampler, texCoord, 0.0).r;
+        // sample volume
+        let density = textureSampleLevel(volumeTexture, volumeSampler, texCoord, 0.0).r;
 
+        if (density > 0.01) {
             // applying transfer function, opacity based on density
-            let colour = vec4<f32>(1.0, 1.0, 1.0, density * 0.1);
-            
+            let colour = vec4<f32>(1.0, 1.0, 1.0, density * 0.5);
+
             // front-to-back compositing
-            accumColour = accumColour + colour * (1.0 - accumColour.a);
+            let alpha = colour.a * (1.0 - accumColour.a);
+            accumColour = accumColour + vec4<f32>(colour.rgb * alpha, alpha);
             
             // early ray termination
             if (accumColour.a > 0.95) {
@@ -71,10 +112,11 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
             }
         }
 
+
         t += stepSize;
 
         // checking against max distance
-        if (t > 3.0) {
+        if (t > 10.0) {
             break;
         }
     }

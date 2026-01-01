@@ -22,7 +22,7 @@ export class VolumeRenderer {
 
         // creating uniform buffer
         this.uniformBuffer = device.createBuffer({
-            size: 128,
+            size: 192,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
@@ -66,12 +66,14 @@ export class VolumeRenderer {
 
     render() {
         const viewMatrix = this.camera.getViewMatrix();
+        const invViewMatrix = this.camera.getInverseViewMatrix();
         const cameraPos = this.camera.getPosition();
 
-        const uniforms = new Float32Array(32);
+        const uniforms = new Float32Array(48);
         uniforms.set(viewMatrix, 0);
-        uniforms.set(cameraPos, 16);
-        uniforms.set([1, 1, 1], 20);
+        uniforms.set(invViewMatrix, 16)
+        uniforms.set(cameraPos, 32);
+        uniforms.set([1, 1, 1], 36);
 
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniforms);
 

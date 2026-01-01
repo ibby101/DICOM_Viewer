@@ -17,7 +17,7 @@ export class Camera {
     getPosition(): [number, number, number] {
         const x = this.target[0] + this.radius * Math.sin(this.phi) * Math.cos(this.theta);
         const y = this.target[1] + this.radius * Math.cos(this.phi);
-        const z = this.target[2] + this.radius * Math.sin(this.phi) * Math.cos(this.theta);
+        const z = this.target[2] + this.radius * Math.sin(this.phi) * Math.sin(this.theta);
 
         return [x, y, z];
     }
@@ -32,7 +32,6 @@ export class Camera {
         const up: [number, number, number] = [0, 1, 0];
 
         // calculating lookAt matrix
-
         const zAxis = normalise(subtract(eye, centre));
         const xAxis = normalise(cross(up, zAxis));
         const yAxis = cross(zAxis, xAxis);
@@ -42,6 +41,27 @@ export class Camera {
             xAxis[1], yAxis[1], zAxis[1], 0,
             xAxis[2], yAxis[2], zAxis[2], 0,
             -dot(xAxis, eye), -dot(yAxis, eye), -dot(zAxis, eye), 1,
+        ]);
+    }
+
+    /**
+     * getting inverse view matrix for ray generation
+     */
+    getInverseViewMatrix(): Float32Array {
+        const pos = this.getPosition();
+        const eye = pos;
+        const centre = this.target;
+        const up: [number, number, number] = [0, 1, 0];
+
+        const zAxis = normalise(subtract(eye, centre));
+        const xAxis = normalise(cross(up, zAxis));
+        const yAxis = cross(zAxis, xAxis);
+
+        return new Float32Array([
+            xAxis[0], xAxis[1], xAxis[2], 0,
+            yAxis[0], yAxis[1], yAxis[2], 0,
+            zAxis[0], zAxis[1], zAxis[2], 0,
+            eye[0], eye[1], eye[2], 1,
         ]);
     }
 
