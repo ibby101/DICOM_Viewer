@@ -1,5 +1,8 @@
 <html>
   <style>
+    input[type="file"] {
+    display: none;
+    }
     canvas{
       padding: 0;
       margin: auto;
@@ -12,12 +15,73 @@
       left: 0;
       right: 0;
     }
+  #ui-container {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      font-family: sans-serif;
+      color: white;
+      width: 300px;
+  }
 
+  #ui-container h3 { margin: 0 0 10px 0; font-size: 16px; }
+
+  /* hiding default file input message */
+  #dicomFile { display: none; }
+
+  .custom-file-btn {
+      display: block;
+      background: white;
+      color: black;
+      padding: 8px;
+      border-radius: 4px;
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 12px;
+      cursor: pointer;
+  }
+
+  .button-row { display: flex; gap: 8px; }
+
+  .btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+  }
+
+  .primary { background: #4CAF50; color: white; }
+  .secondary { background: #2196F3; color: white; }
+  .btn:disabled { background: #555; cursor: not-allowed; }
+
+  #status {
+      color: #4CAF50;
+      margin-top: 10px;
+      font-size: 13px;
+      font-family: monospace;
+      min-height: 20px;
+  }
   </style>
   <body bgcolor = "383535">
-    <div>
+    <div id="ui-container">
+      <h3>Volume Loader</h3>
+      <label for="dicomFile" class="custom-file-btn">Upload DICOM</label>
+      <input type="file" id="dicomFile" multiple accept=".dcm, .dicom,.raw">
+      <div class="button-row">
+        <button id="loadBtn" class="btn primary">Load Selected File</button>
+        <button id="testBtn" class="btn secondary">Load Test Volume</button>
+      </div>
+      <div id="status">Test volume loaded (128^3)</div>
+    </div>
     <canvas id="canvas"></canvas>
     <script type="module" src="/src/core/WebGPUContext.ts"></script>
-    </div>
   </body>
 </html>
