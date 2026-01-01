@@ -1,4 +1,5 @@
 import { Volume } from "./Volume.ts";
+import * as dicomParser from 'dicom-parser';
 
 /**
  * Handles loading of volume data from different file formats
@@ -26,10 +27,119 @@ export class VolumeLoader {
                 throw new Error('NIfTI format not yet supported');
             case 'dcm':
             case 'dicom':
-                throw new Error('DICOM format not yet supported');
+                return await this.loadDICOMSeries(files);
             default:
-                throw new Error('Unsupported file format: ${extension}');
+                throw new Error(`Unsupported file format: ${extension}`);
         }
+    }
+
+    /**
+     * Loads multiple slices from DICOM series.
+     * @param files - array of DICOM files
+     * @returns promise resolving to volume
+     */
+    private static async loadDICOMSeries(files: File[]): Promise<Volume> {
+        console.log(`Loading ${files.length} DICOM files...`);
+
+        // parsing DICOM files
+        const slices: DicomSlice[] = [];
+
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const byteArray = new Uint8Array(arrayBuffer);
+
+            try {
+                const dataSet = dicomParser.parseDicom(byteArray);
+
+                // extracting metadata
+                const width = dataSet.uint16('x00280011')!;
+                const height = dataSet.uint16('x00280010')!;
+                const sliceLocation = dataSet.floatString('x00201041') || 0;
+                const instanceNumber = dataSet.intString('x00200013') || 0;
+
+                // extracting pixel data
+                const pixelDataElement = dataSet.elements.x7fe00010;
+                if (!pixelDataElement) {
+                    throw new Error('No pixel data found in DICOM file');
+                }
+
+                const pixelData = new Uint16Array(
+                    dataSet.byteArray.buffer,
+                    pixelDataElement.dataOffset,
+                    pixelDataElement.length / 2
+                );
+
+                // getting pixel spacing
+                const pixelSpacing = dataSet.string('x00280030')?.split('\\').map(Number) || [1, 1];
+                const sliceThickness = dataSet.floatString('x00180050') || 1;
+
+                slices.push({
+                    width,
+                    height,
+                    sliceLocation,
+                    instanceNumber,
+                    pixelData,
+                    pixelSpacing,
+                    sliceThickness,
+                    file:file.name
+                });
+            } catch (error) {
+                console.error(`Error parsing ${file.name}: `, error);
+                throw error;    
+            }
+        }
+
+        slices.sort((a, b) => {
+            if (a.instanceNumber !== b.instanceNumber) {
+                return a.instanceNumber - b.instanceNumber;
+            }
+            return a.sliceLocation - b.sliceLocation;
+        });
+
+        console.log(`Sorted ${slices.length} slices`)
+
+        // building 3D volume
+        const width = slices[0].width!;
+        const height = slices[0].height!;
+        const depth = slices.length;
+
+        const volumeData = new Float32Array(width * height  * depth);
+
+        // finding min/max for normalisation
+        let minValue = Infinity;
+        let maxValue = -Infinity;
+        
+        for (const slice of slices) {
+            for (let i = 0; i < slice.pixelData.length; i++) {
+                const value = slice.pixelData[i];
+                if (value < minValue) minValue = value;
+                if (value > maxValue) maxValue = value;
+            }
+        }
+
+        console.log(`DICOM value range: ${minValue} to ${maxValue}`);
+
+        const range = maxValue - minValue;
+
+        for (let z = 0; z < depth; z++) {
+            const slice = slices[z];
+            const sliceOffset = z * width * height;
+            
+            for (let i = 0; i < slice.pixelData.length; i++) {
+                volumeData[sliceOffset + i] = (slice.pixelData[i] - minValue) / range;
+            }
+        }
+
+        // getting spacing
+        const spacing: [number, number, number] = [
+            slices[0].pixelSpacing[0],
+            slices[0].pixelSpacing[1],
+            slices[0].sliceThickness
+        ];
+
+        console.log(`Volume created: ${width}x${height}x${depth}\nspacing: ${spacing}`)
+
+        return new Volume(volumeData, [width, height, depth], spacing);
     }
 
     /**
@@ -73,16 +183,16 @@ export class VolumeLoader {
 
         const cubeRoot = Math.round(Math.cbrt(byteLength));
         if (cubeRoot *cubeRoot * cubeRoot === byteLength) {
-            console.log('Inferred cubic volume: ${cubeRoot}³');
+            console.log(`Inferred cubic volume: ${cubeRoot}³`);
             return [cubeRoot, cubeRoot, cubeRoot];
         }
 
-        console.warn('Could not infer dimensions from size ${byteLength}. Assuming 256³');
+        console.warn(`Could not infer dimensions from size ${byteLength}. Assuming 256³`);
         return [256, 256, 256];
     }
 
     /**
-     * generation of synthetic test volume with sphere
+     * generation of spherical synthetic test volume
      * used for testing rendering without real data
      * @param size - cube dimensions, 128 by default
      * @returns volume containing a centered sphere
@@ -115,6 +225,17 @@ export class VolumeLoader {
 
         return new Volume(data, dimensions);
     }
+}
 
-    
+// helper interface
+
+interface DicomSlice {
+    width: number,
+    height: number,
+    sliceLocation: number,
+    instanceNumber: number,
+    pixelData: Uint16Array;
+    pixelSpacing: number[];
+    sliceThickness: number;
+    file: string;
 }
