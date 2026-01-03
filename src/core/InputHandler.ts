@@ -28,7 +28,7 @@ export class InputHandler {
             if (!this.isDragging) return;
 
             const deltaX = e.clientX - this.lastX;
-            const deltaY = e.clientY - this.lastY;
+            const deltaY = -(e.clientY - this.lastY);
 
             this.camera.rotate(deltaX * 0.01, deltaY * 0.01);
 
