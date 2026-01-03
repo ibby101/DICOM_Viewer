@@ -52,6 +52,29 @@ export class VolumeTexture {
         console.log('VolumeTexture created: ', volume.dimensions);
     }
 
+    createTransferFunctionTexture(device: GPUDevice) {
+        const size = 256;
+        const data = new Uint8Array(size * 4);
+        for (let i = 0; i < size; i++) {
+            const t = i / (size - 1);
+
+            data[i * 4 + 0] = t * 255; // R
+            data[i * 4 + 1] = (1 - Math.abs(t - 0.5) * 2) * 255; // G
+            data[i * 4 + 2] = (1 - t) * 255; // B
+            data[i * 4 + 3] = t * 255; // A
+        }
+
+        const texture = device.createTexture({
+            size: [size],
+            dimension: '1d',
+            format: 'rgba8unorm',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+        });
+
+        device.queue.writeTexture({texture}, data, {bytesPerRow: size * 4}, [size]);
+        return texture;
+    }
+
     destroy(){
         this.texture.destroy();
     }

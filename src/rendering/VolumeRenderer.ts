@@ -8,6 +8,7 @@ export class VolumeRenderer {
     private pipeline: GPURenderPipeline;
     private bindGroup: GPUBindGroup;
     private uniformBuffer: GPUBuffer
+    private transferFuncTexture: GPUTexture;
     private camera:  Camera;
 
     constructor (
@@ -19,6 +20,7 @@ export class VolumeRenderer {
         this.device = device;
         this.context = context;
         this.camera = camera;
+        this.transferFuncTexture = volumeTexture.createTransferFunctionTexture(device);
 
         // creating uniform buffer
         this.uniformBuffer = device.createBuffer({
@@ -32,6 +34,8 @@ export class VolumeRenderer {
                 {binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: {type: 'uniform'}},
                 {binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {sampleType: 'unfilterable-float', viewDimension: '3d'}},
                 {binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {type: 'non-filtering'}},
+                {binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {viewDimension: '1d'}},
+                {binding: 4, visibility: GPUShaderStage.FRAGMENT, sampler: {type: 'filtering'}},
             ],
         });
 
@@ -41,6 +45,8 @@ export class VolumeRenderer {
                 {binding: 0, resource: {buffer: this.uniformBuffer}},
                 {binding: 1, resource: volumeTexture.view},
                 {binding: 2, resource: volumeTexture.sampler},
+                {binding: 3, resource: this.transferFuncTexture.createView()},
+                {binding: 4, resource: device.createSampler({ magFilter: 'linear'})},
             ],
         });
 
@@ -68,12 +74,13 @@ export class VolumeRenderer {
         const viewMatrix = this.camera.getViewMatrix();
         const invViewMatrix = this.camera.getInverseViewMatrix();
         const cameraPos = this.camera.getPosition();
+        const volumeSize = [1.0, 1.0, 1.0];
 
         const uniforms = new Float32Array(48);
         uniforms.set(viewMatrix, 0);
         uniforms.set(invViewMatrix, 16)
         uniforms.set(cameraPos, 32);
-        uniforms.set([1, 1, 1], 36);
+        uniforms.set(volumeSize, 36);
 
         this.device.queue.writeBuffer(this.uniformBuffer, 0, uniforms);
 

@@ -10,6 +10,8 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(0) @binding(1) var volumeTexture: texture_3d<f32>;
 @group(0) @binding(2) var volumeSampler: sampler;
+@group(0) @binding(3) var transferFuncTexture: texture_1d<f32>;
+@group(0) @binding(4) var transferSampler: sampler;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -80,8 +82,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let tStart = max(tEnter, 0.0);
     
     // raymarching through the volume
-    let stepSize = 0.005;
-    let maxSteps = 400;
+    let stepSize = 0.003;
+    let maxSteps = 500;
     var t = tStart;
     var accumColour = vec4<f32>(0.0);
 
@@ -93,14 +95,20 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         let pos = rayOrigin + rayDirWorld * t;
 
         // converting to texture coordinates
-        let texCoord = pos + 0.5;
+        let texCoord = vec3<f32>(
+            pos.x + 0.5,           
+            1.0 - (pos.y + 0.5),   
+            1.0 - (pos.z + 0.5)    
+        );
 
         // sample volume
         let density = textureSampleLevel(volumeTexture, volumeSampler, texCoord, 0.0).r;
 
         if (density > 0.01) {
-            // applying transfer function, opacity based on density
-            let colour = vec4<f32>(1.0, 1.0, 1.0, density * 0.5);
+            // sampling 1D texture coordinates using density
+            let tfSample = textureSampleLevel(transferFuncTexture, transferSampler, density, 0.0);
+            
+            let colour = vec4<f32>(tfSample.rgb, density * 0.5);
 
             // front-to-back compositing
             let alpha = colour.a * (1.0 - accumColour.a);
